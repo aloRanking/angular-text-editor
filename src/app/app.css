@@ -1,0 +1,72 @@
+.text-editor-container {
+  max-width: 600px;
+  margin: 30px auto;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+  font-family: Arial, sans-serif;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.toolbar button {
+  border: 1px solid #999;
+  background: #f1f1f1;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.toolbar button.active {
+  background: #007bff;
+  color: white;
+}
+
+.editor {
+  min-height: 150px;
+  border: 1px solid #ddd;
+  padding: 10px;
+  outline: none;
+  border-radius: 4px;
+}
+
+.save-btn {
+  margin-top: 10px;
+  padding: 6px 12px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.saved-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px; /* space between number and text */
+  margin-bottom: 10px;
+}
+
+.saved-item p {
+  margin: 0;
+  font-weight: bold;
+  color: #333;
+}
+
+.saved-text {
+  flex: 1;
+}
+
+.saved-content {
+  margin-top: 20px;
+  background: #fafafa;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #eee;
+}
