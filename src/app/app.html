@@ -1,34 +1,36 @@
 <div class="text-editor-container">
- 
-<div class="toolbar">
-  <button (click)="applyFormat('bold')"[class.active]="styles.bold"><b>B</b></button>
-  <button (click)="applyFormat('italic')"[class.active]="styles.italic"><i>I</i></button>
-  <button (click)="applyFormat('underline')"[class.active]="styles.underline"><u>U</u></button>
-<input type="color" (input)="applyFormat('foreColor', $event.target.value); $event.target.blur()" [(ngModel)]="styles.color" />
 
-</div>
-   
+  <div class="toolbar">
+    <button (click)="applyFormat('bold')" [class.active]="styles.bold"><b>B</b></button>
+    <button (click)="applyFormat('italic')" [class.active]="styles.italic"><i>I</i></button>
+    <button (click)="applyFormat('underline')" [class.active]="styles.underline"><u>U</u></button>
+    <input type="color" (input)="applyFormat('foreColor', $event.target.value); $event.target.blur()"
+      [(ngModel)]="styles.color" />
+    <button (click)="uploadImage()">🖼️ Image</button>
+    <input type="file" #imageInput accept="image/*" hidden multiple (change)="onImageSelected($event)">
+
+  </div>
 
 
-  <!-- Editable area -->
-  <div
-    class="editor"
-    contenteditable="true"
-    (input)="onInput($event)"
-    #editor
-  ></div>
+  <div class="editor" contenteditable="true" (keydown)="onKeyDown($event)" (input)="onInput($event)" #editor></div>
 
-  <!-- Save -->
   <button class="save-btn" (click)="save()">Save</button>
 
-  <div *ngIf="savedContent.length > 0"  class ="saved-content"
-  >
-    <h3>Saved Content:</h3>
-    <div *ngFor="let text of savedContent; let i = index" class="saved-item">
-  <p><strong>{{ i + 1 }}.</strong></p>
-  <div class="saved-text" [innerHTML]="text"></div>
-</div>
+  <div *ngIf="savedContent.length > 0" class="saved-content">
+  <h3>Saved Content:</h3>
+
+  <div *ngFor="let item of savedContent; let i = index" class="saved-item">
+    <p  ><strong>{{ i + 1 }}.</strong></p>
+
+    <!-- Text only -->
+    <div class="saved-text" [innerHTML]="item.html"></div>
+
+    <!-- Images Carousel -->
+    <div *ngIf="item.images.length > 0" class="carousel">
+      <div class="carousel-images">
+        <img *ngFor="let img of item.images" [src]="img" class="carousel-img">
+      </div>
+    </div>
   </div>
 </div>
-
-<!--  -->
+</div>
