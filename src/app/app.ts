@@ -10,7 +10,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
   templateUrl: './app.html',
   styleUrl: './app.css',
   encapsulation: ViewEncapsulation.None,
-  
+
 })
 export class App {
   @ViewChild('editor') editor!: ElementRef;
@@ -26,9 +26,11 @@ export class App {
   };
 
   textContent = '';
+  isSaving = false;
+
   //savedContent: SafeHtml[] = [];
 
-  
+
 
   savedContent: { html: string, images: string[] }[] = [];
 
@@ -36,26 +38,26 @@ export class App {
     this.imageInput.nativeElement.click();
   }
 
- onImageSelected(event: Event) {
-  const input = event.target as HTMLInputElement;
-  if (!input.files?.length) return;
+  onImageSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
 
-  for (const file of Array.from(input.files)) {
-    const reader = new FileReader();
-    reader.onload = (e: any) => {
-      const img = document.createElement('img');
-      img.src = e.target.result;
-      img.style.maxWidth = '100px';
-      img.style.height = '100px';
-      img.style.borderRadius = '6px';
-      img.style.margin = '5px';
-      this.editor.nativeElement.appendChild(img);
-    };
-    reader.readAsDataURL(file);
+    for (const file of Array.from(input.files)) {
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        img.style.maxWidth = '100px';
+        img.style.height = '100px';
+        img.style.borderRadius = '6px';
+        img.style.margin = '5px';
+        this.editor.nativeElement.appendChild(img);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    input.value = '';
   }
-
-  input.value = ''; 
-}
 
   insertImageAtCursor(img: HTMLImageElement) {
     const sel = window.getSelection();
@@ -65,15 +67,15 @@ export class App {
     range.collapse(false);
   }
 
- onKeyDown(event: KeyboardEvent) {
-  // Check if Enter key was pressed
-  if (event.key === 'Enter') {
-    event.preventDefault();
+  onKeyDown(event: KeyboardEvent) {
+    // Check if Enter key was pressed
+    if (event.key === 'Enter') {
+      event.preventDefault();
 
-   
-    document.execCommand('insertHTML', false, '<br><br>');
+
+      document.execCommand('insertHTML', false, '<br><br>');
+    }
   }
-}
 
 
   applyFormat(command: string, value: string | null = null) {
@@ -98,30 +100,32 @@ export class App {
     this.textContent = element.innerHTML;
   }
 
-  save() {
-    const html = this.editor.nativeElement.innerHTML.trim();
-    console.log(html);
+ async save() {
+  const html = this.editor.nativeElement.innerHTML.trim();
+  if (!html) return;
 
-    if (html != '') {
+  this.isSaving = true; // start feedback
 
-const tempDiv = document.createElement('div');
+  try {
+    const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
 
-   
     const images = Array.from(tempDiv.querySelectorAll('img')).map(img => img.src);
-
-    // Remove <img> tags from the text HTML
     tempDiv.querySelectorAll('img').forEach(img => img.remove());
-    const textOnlyHtml = tempDiv.innerHTML;
 
-    
+    let textOnlyHtml = tempDiv.innerHTML;
+
+    // Transform Quran references in the text-only HTML
+    textOnlyHtml = await this.linkifyQuranRefsInHtml(textOnlyHtml);
+
     this.savedContent.push({ html: textOnlyHtml, images });
-      
-      this.resetEditor();
-    }
-
-
+    this.resetEditor();
+  } catch (err) {
+    console.error('Error while saving:', err);
+  } finally {
+    this.isSaving = false; // end feedback
   }
+}
 
   resetEditor() {
     this.editor.nativeElement.innerHTML = '';
@@ -134,44 +138,110 @@ const tempDiv = document.createElement('div');
     };
   }
 
-// applyFormat(command: string, value: string | null = null) {
-//   this.toggleStyle(command as keyof typeof this.styles);
-//   this.applyModernCommand(command, value);
-//   this.editor.nativeElement.focus();
-// }
+  private async fetchVersePreview(chapter: string, verse: string): Promise<string | null> {
+    try {
+      const res = await fetch(`http://api.alquran.cloud/v1/ayah/${chapter}:${verse}/en.asad`);
+      console.log(res);
+      const data = await res.json();
+      console.log('data: ', data);
 
-// applyModernCommand(command: string, value: string | null = null) {
-//   const selection = window.getSelection();
-//   if (!selection || selection.rangeCount === 0) return;
+      // Access the text from data.data.text instead of data.text
+      if (data?.data?.text?.length > 0) {
+        const text = data.data.text;
+        console.log(text);
+        return text.length > 100 ? text.slice(0, 80) + '…' : text;
+      }
+      return null;
+    } catch (err) {
+      console.error('Error fetching verse preview:', err);
+      return null;
+    }
+  }
 
-//   const range = selection.getRangeAt(0);
-//   const selectedText = range.extractContents();
+  private generateQuranThumbDataUrl(verse: string): string {
+    const text = `${verse}`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80">
+    <rect rx="8" ry="8" width="100%" height="100%" fill="#fffbea" stroke="#f1c40f"/>
+    <text x="50%" y="50%" dominant-baseline="middle" text-anchor="end"
+          font-family="Arial, Helvetica, sans-serif" font-size="10" fill="#333">${text}</text>
+  </svg>`;
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  }
 
-//   let formattedNode: HTMLElement;
+  /**
+   * Walk text nodes and replace Qx:y occurrences with anchor+img nodes.
+   * Returns transformed HTML string.
+   */
+  async linkifyQuranRefsInHtml(html: string): Promise<string> {
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
 
-//   switch (command) {
-//     case 'bold':
-//       formattedNode = document.createElement('strong');
-//       break;
-//     case 'italic':
-//       formattedNode = document.createElement('em');
-//       break;
-//     case 'underline':
-//       formattedNode = document.createElement('u');
-//       break;
-//     case 'foreColor':
-//       formattedNode = document.createElement('span');
-//       formattedNode.style.color = value || this.styles.color;
-//       break;
-//     default:
-//       return;
-//   }
+    const regex = /\b[qQ](\d{1,3}):(\d{1,3})\b/g;
 
-//   formattedNode.appendChild(selectedText);
-//   range.insertNode(formattedNode);
-// }
+    const walk = async (node: Node): Promise<void> => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.nodeValue || '';
+        let match: RegExpExecArray | null;
+        let lastIndex = 0;
+        const frag = document.createDocumentFragment();
+        regex.lastIndex = 0;
 
-  
+        while ((match = regex.exec(text)) !== null) {
+          const before = text.slice(lastIndex, match.index);
+          if (before) frag.appendChild(document.createTextNode(before));
+
+          const chapter = match[1];
+          const verse = match[2];
+
+          const preview = await this.fetchVersePreview(chapter, verse);
+
+          const anchor = document.createElement('a');
+          anchor.className = 'q-ref';
+          anchor.href = `https://quran.com/${chapter}/${verse}`;
+          anchor.target = '_blank';
+          anchor.rel = 'noopener noreferrer';
+          anchor.setAttribute('data-chapter', chapter);
+          anchor.setAttribute('data-verse', verse);
+
+          // Display format: "Q2:7 — Allah has set a seal..."
+          const label = `Q${chapter}:${verse}`;
+          const previewText = preview ? ` — ${preview}` : '';
+          anchor.textContent = label + previewText;;
+          const thumbText = label + previewText;
+          // const img = document.createElement('img');
+          // img.className = 'q-thumb';
+          // img.src = this.generateQuranThumbDataUrl(thumbText);
+          // img.alt = `Q${chapter}:${verse}`;
+          // anchor.appendChild(img);
+
+          frag.appendChild(anchor);
+          lastIndex = regex.lastIndex;
+        }
+
+        const rest = text.slice(lastIndex);
+        if (rest) frag.appendChild(document.createTextNode(rest));
+        if (frag.childNodes.length) node.parentNode?.replaceChild(frag, node);
+        return;
+      }
+
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as Element;
+        if (el.closest && el.closest('.q-ref')) return;
+        const skipTags = ['A', 'SCRIPT', 'STYLE'];
+        if (skipTags.includes(el.tagName)) return;
+        for (const child of Array.from(node.childNodes)) {
+          await walk(child);
+        }
+      }
+    };
+
+    await walk(temp);
+    return temp.innerHTML;
+  }
+
+
+
+
 
 }
 
